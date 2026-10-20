@@ -61,4 +61,11 @@ def created_contact(auth_headers, contact_data):
 
     created = asdict(contact_data)
     created["id"] = contact_id
-    return created
+
+    yield created
+
+    list_response = requests.get(f"{API_BASE_URL}/v1/contacts", headers=auth_headers)
+    existing_ids = [contact["id"] for contact in list_response.json()["contacts"]]
+    if contact_id in existing_ids:
+        delete_response = requests.delete(f"{API_BASE_URL}/v1/contacts/{contact_id}", headers=auth_headers)
+        assert delete_response.status_code ==200
