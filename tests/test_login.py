@@ -6,7 +6,7 @@ import requests
 from config import TEST_USER_EMAIL, TEST_USER_PASSWORD, API_BASE_URL
 from exploration import payload
 from models.user import User
-from tests.conftest import new_user
+from tests.conftest import new_user, anonimus_client
 
 
 def test_login_with_valid_credentials_return_token():
@@ -38,10 +38,10 @@ def test_login_with_valid_credentials_return_token():
         pytest.param("",TEST_USER_PASSWORD, id="username_empty"),
     ]
 )
-def test_login_with_invalid_credentials_rejected(username,password):
+def test_login_with_invalid_credentials_rejected(anonimus_client,username,password):
     payload = asdict(User(username=username,password=password))
 
-    response = requests.post(f"{API_BASE_URL}/v1/user/login/usernamepassword", json=payload)
+    response = anonimus_client.post("/v1/user/login/usernamepassword", json=payload)
     assert response.status_code==401
     assert "incorrect" in response.json()["message"].lower()
 

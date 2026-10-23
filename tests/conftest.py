@@ -4,6 +4,7 @@ from dataclasses import asdict
 import pytest
 import requests
 
+from api.api_client import APIClient
 from config import TEST_USER_EMAIL, TEST_USER_PASSWORD, API_BASE_URL
 from models.contact import Contact
 from models.user import User
@@ -14,12 +15,14 @@ fake = Faker()
 
 @pytest.fixture
 def auth_token():
-    payload = {
+    client = APIClient(API_BASE_URL)
+    login_payload = {
         "username": TEST_USER_EMAIL,
         "password": TEST_USER_PASSWORD
     }
 
-    response = requests.post(f"{API_BASE_URL}/v1/user/login/usernamepassword", json=payload)
+    response = client.post("/v1/user/login/usernamepassword", json=login_payload)
+    client.close()
     assert response.status_code == 200
     token = response.json()["token"]
     return token
@@ -53,8 +56,8 @@ def contact_data():
 
 
 @pytest.fixture
-def created_contact(auth_headers, contact_data):
-    response = requests.post(f"{API_BASE_URL}/v1/contacts", json=asdict(contact_data), headers=auth_headers)
+def created_contact(api_client, contact_data):
+    response = api_client.post("/v1/contacts", json=asdict(contact_data))
     assert response.status_code == 200
     message = response.json()["message"]
     contact_id = message.split(": ")[1]
@@ -64,8 +67,22 @@ def created_contact(auth_headers, contact_data):
 
     yield created
 
-    list_response = requests.get(f"{API_BASE_URL}/v1/contacts", headers=auth_headers)
+    list_response = api_client.get("/v1/contacts")
     existing_ids = [contact["id"] for contact in list_response.json()["contacts"]]
     if contact_id in existing_ids:
-        delete_response = requests.delete(f"{API_BASE_URL}/v1/contacts/{contact_id}", headers=auth_headers)
+        delete_response = api_client.delete("/v1/contacts/{contact_id}")
         assert delete_response.status_code ==200
+
+
+@pytest.fixture
+def api_client(auth_token):
+    client = APIClient(API_BASE_URL, token=auth_token)
+    yield  client
+    client.close()
+
+
+@pytest.fixture
+def anonimus_client():
+    client = APIClient(API_BASE_URL)
+    yield  client
+    client.close()
